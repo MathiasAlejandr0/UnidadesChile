@@ -1,16 +1,8 @@
 import { cars } from "../data/cars";
-import { SITE } from "../lib/config";
+import { PLACEHOLDER_EMAIL, PLACEHOLDER_WHATSAPP, SITE } from "../lib/config";
 import { isUnidadesChileStock } from "../lib/sources";
 import { idbClear, idbDelete, idbGet, idbGetAll, idbPut } from "./idb";
-import {
-  DEFAULT_ADMIN,
-  type AdminUser,
-  type Lead,
-  type MediaAsset,
-  type Publication,
-  type SiteSettings,
-  type Vehicle,
-} from "./types";
+import type { AdminUser, Lead, MediaAsset, Publication, SiteSettings, Vehicle } from "./types";
 
 const SETTINGS_ID = "site";
 const AUTH_ID = "auth";
@@ -18,6 +10,8 @@ const SEEDED = "uc-seed-v1";
 const LOCATION_MIGRATE = "uc-location-pm-v2";
 const L200_MIGRATE = "uc-hero-l200-v1";
 const STOCK_MIGRATE = "uc-stock-unidades-chile-v3";
+const WHATSAPP_MIGRATE = "uc-whatsapp-v1";
+const EMAIL_MIGRATE = "uc-email-v1";
 
 export function nowIso() {
   return new Date().toISOString();
@@ -43,6 +37,8 @@ export async function seedIfNeeded() {
       await migrateLocation();
       await migrateHeroL200();
       await migrateStock();
+      await migrateWhatsapp();
+      await migrateEmail();
       return;
     }
   }
@@ -66,11 +62,12 @@ export async function seedIfNeeded() {
     homeSub: "Autos seleccionados. Precios bajo mercado. Entrega en todo Chile.",
   };
   await idbPut("settings", settings);
-  await idbPut("settings", { id: AUTH_ID, ...DEFAULT_ADMIN });
   localStorage.setItem(SEEDED, "1");
   await migrateLocation();
   await migrateHeroL200();
   await migrateStock();
+  await migrateWhatsapp();
+  await migrateEmail();
 }
 
 async function migrateLocation() {
@@ -112,6 +109,32 @@ async function migrateStock() {
     });
   }
   localStorage.setItem(STOCK_MIGRATE, "1");
+}
+
+async function migrateWhatsapp() {
+  if (localStorage.getItem(WHATSAPP_MIGRATE)) return;
+  const current = await getSettings();
+  const isLegacy =
+    !current.whatsapp ||
+    current.whatsapp === PLACEHOLDER_WHATSAPP ||
+    current.phoneDisplay === "+56 9 8765 4321";
+  if (isLegacy) {
+    await saveSettings({
+      ...current,
+      whatsapp: SITE.whatsapp,
+      phoneDisplay: SITE.phoneDisplay,
+    });
+  }
+  localStorage.setItem(WHATSAPP_MIGRATE, "1");
+}
+
+async function migrateEmail() {
+  if (localStorage.getItem(EMAIL_MIGRATE)) return;
+  const current = await getSettings();
+  if (!current.email || current.email === PLACEHOLDER_EMAIL) {
+    await saveSettings({ ...current, email: SITE.email });
+  }
+  localStorage.setItem(EMAIL_MIGRATE, "1");
 }
 
 export const vehiclesRepo = {
@@ -164,7 +187,15 @@ export async function getSettings(): Promise<SiteSettings> {
   const row = await idbGet<SiteSettings & { id: string }>("settings", SETTINGS_ID);
   if (row) {
     const { id: _id, ...rest } = row;
-    return rest;
+    const next = { ...rest };
+    if (next.whatsapp === PLACEHOLDER_WHATSAPP || !next.whatsapp) {
+      next.whatsapp = SITE.whatsapp;
+      next.phoneDisplay = SITE.phoneDisplay;
+    }
+    if (next.email === PLACEHOLDER_EMAIL || !next.email) {
+      next.email = SITE.email;
+    }
+    return next;
   }
   return {
     ...SITE,
@@ -178,14 +209,24 @@ export async function saveSettings(s: SiteSettings) {
   await idbPut("settings", { id: SETTINGS_ID, ...s });
 }
 
-export async function getAdminUser(): Promise<AdminUser> {
-  const row = await idbGet<AdminUser & { id: string }>("settings", AUTH_ID);
-  if (row) return { user: row.user, password: row.password };
-  return DEFAULT_ADMIN;
+export type AdminRecord =
+  | { user: string; passwordHash: string }
+  | { user: string; legacyPassword: string };
+
+export async function getAdminRecord(): Promise<AdminRecord | null> {
+  const row = await idbGet<Record<string, string>>("settings", AUTH_ID);
+  if (!row) return null;
+  if (typeof row.passwordHash === "string" && row.passwordHash) {
+    return { user: String(row.user ?? ""), passwordHash: row.passwordHash };
+  }
+  if (typeof row.password === "string" && row.password) {
+    return { user: String(row.user ?? ""), legacyPassword: row.password };
+  }
+  return null;
 }
 
 export async function saveAdminUser(user: AdminUser) {
-  await idbPut("settings", { id: AUTH_ID, ...user });
+  await idbPut("settings", { id: AUTH_ID, user: user.user, passwordHash: user.passwordHash });
 }
 
 export async function exportBackup() {
@@ -258,13 +299,3 @@ export async function importBackup(dump: {
   }
 }
 
-const SESSION = "uc-admin-session";
-
-export function isAdminSession() {
-  return sessionStorage.getItem(SESSION) === "1";
-}
-
-export function setAdminSession(on: boolean) {
-  if (on) sessionStorage.setItem(SESSION, "1");
-  else sessionStorage.removeItem(SESSION);
-}

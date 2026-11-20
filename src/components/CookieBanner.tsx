@@ -8,7 +8,7 @@ export function CookieBanner() {
   if (choice) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-[4.5rem] z-40 px-3 md:bottom-6">
+    <div className="fixed inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 px-3 md:bottom-6">
       <div className="mx-auto flex max-w-[720px] flex-col gap-3 rounded-2xl border border-white/10 bg-[#111]/95 p-4 backdrop-blur sm:flex-row sm:items-center">
         <p className="min-w-0 text-[12px] leading-relaxed text-white/65">
           Usamos cookies esenciales para el sitio y, si aceptas, para mejorar la atención.{" "}

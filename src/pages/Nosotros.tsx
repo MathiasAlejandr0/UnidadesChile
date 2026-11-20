@@ -3,7 +3,7 @@ import { PageTitle } from "../components/PageTitle";
 
 export function Nosotros() {
   return (
-    <div>
+    <div className="pb-28">
       <PageTitle
         title="Nosotros | Unidades Chile"
         description="Automotora de usados en Puerto Montt. Precio bajo mercado e inspección 180 puntos."

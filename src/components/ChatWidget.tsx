@@ -15,10 +15,10 @@ function reply(q: string, cars: { id: string; marca: string; modelo: string; yea
     return { text: "Hola. ¿Buscas pickup, furgón o algo más chico? También puedo pasarte con un ejecutivo." };
   }
   if (/financia|cuota|crédito|credito|pie/.test(t)) {
-    return { text: "El simulador de /financia usa la misma lógica Autofin: pie desde 20% y hasta 48 cuotas. Si me dices presupuesto, te armo opciones." };
+    return { text: "En /financia simulas tu cuota con el método Autofin. Es referencial: no es la cuota real; en la mayoría de los casos esa puede ser menor." };
   }
-  if (/vende|tasar|compran/.test(t)) {
-    return { text: "En /vende-tu-auto te damos una banda de oferta. Completa los datos y te contactamos el mismo día." };
+  if (/vende|tasar|compran|consign/.test(t)) {
+    return { text: "En /consigna-tu-vehiculo dejas los datos y fotos del auto. Nos llega un correo y te contactamos." };
   }
   if (/dónde|donde|dirección|direccion|sucursal|mapa/.test(t)) {
     return { text: "Estamos en Regimiento #1207, Puerto Montt. Lun a Sáb de 10:00 a 19:00." };
@@ -69,7 +69,7 @@ export function ChatWidget() {
   };
 
   return (
-    <div className="pointer-events-none fixed bottom-[5.75rem] left-3 z-40 md:bottom-8 md:left-8">
+    <div className="pointer-events-none fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-3 z-40 md:bottom-8 md:left-8">
       {open && (
         <div className="pointer-events-auto mb-3 w-[min(360px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d0d] shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]">
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">

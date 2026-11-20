@@ -2,8 +2,23 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { cars } from "../data/cars";
 import { SITE } from "../lib/config";
 import { fetchUcCatalogFromSupabase } from "../lib/catalogSupabase";
+import { PENDING_PHOTO, isRemotePhoto } from "../lib/photos";
 import { isSupabaseConfigured } from "../lib/supabase";
-import { isUnidadesChileStock } from "../lib/sources";
+import { adminDeleteVehicle, adminSaveVehicle } from "../lib/adminApi";
+import { filterToSheetPlates, fetchSheetPlates } from "../lib/sheetPlates";
+import { isUnidadesChileStock, plateKey } from "../lib/sources";
+
+const seedByPlate = new Map(cars.map((car) => [plateKey(car.unidad), car]));
+
+function hydratePhotos(list: Vehicle[]): Vehicle[] {
+  return list.map((car) => {
+    const hasReal = car.imagenes.some((src) => isRemotePhoto(src));
+    if (hasReal) return car;
+    const local = seedByPlate.get(plateKey(car.unidad));
+    if (local?.imagenes?.length) return { ...car, imagenes: local.imagenes };
+    return { ...car, imagenes: [PENDING_PHOTO] };
+  });
+}
 import {
   getSettings,
   leadsRepo,
@@ -70,19 +85,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
       remote = await fetchUcCatalogFromSupabase();
     }
 
-    const [v, p, l, m, s] = await Promise.all([
+    const [v, p, l, m, s, plates] = await Promise.all([
       vehiclesRepo.all(),
       publicationsRepo.all(),
       leadsRepo.all(),
       mediaRepo.all(),
       getSettings(),
+      fetchSheetPlates(),
     ]);
 
     if (remote !== null) {
-      setVehicles(remote.filter((car) => isUnidadesChileStock(car.unidad)));
+      // Supabase ya es la fuente de verdad (RLS). El filtro Sheet solo aporta
+      // cuando hay solape razonable; si no, no vaciar el catálogo a 5 autos.
+      const filtered = filterToSheetPlates(remote, plates);
+      const useFiltered =
+        Boolean(plates) &&
+        filtered.length >= Math.min(8, remote.length) &&
+        filtered.length >= remote.length * 0.5;
+      setVehicles(hydratePhotos(useFiltered ? filtered : remote));
       setCatalogSource("supabase");
     } else if (v.length) {
-      setVehicles(v.filter((car) => isUnidadesChileStock(car.unidad)));
+      setVehicles(
+        hydratePhotos(
+          filterToSheetPlates(
+            v.filter((car) => isUnidadesChileStock(car.unidad)),
+            plates,
+          ),
+        ),
+      );
       setCatalogSource("local");
     }
     setPublications(p);
@@ -114,9 +144,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       refresh,
       saveVehicle: async (v) => {
         await vehiclesRepo.save(v);
+        try {
+          await adminSaveVehicle(v);
+        } catch {
+          /* IDB queda; el API pide cookie + service role */
+        }
         await refresh();
       },
       deleteVehicle: async (id) => {
+        try {
+          await adminDeleteVehicle(id);
+        } catch {
+          /* local */
+        }
         await vehiclesRepo.remove(id);
         await refresh();
       },

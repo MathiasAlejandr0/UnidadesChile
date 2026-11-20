@@ -65,10 +65,5 @@ export type SiteSettings = {
 
 export type AdminUser = {
   user: string;
-  password: string;
-};
-
-export const DEFAULT_ADMIN: AdminUser = {
-  user: "admin",
-  password: "Unidades2026",
+  passwordHash: string;
 };

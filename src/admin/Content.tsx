@@ -26,8 +26,7 @@ export function ContentPage() {
         alert("Contenido del sitio guardado.");
       }}
     >
-      <h1 className="text-3xl font-bold">Sitio web</h1>
-      <p className="mt-1 text-sm text-white/45">Textos del home, contacto y ubicación.</p>
+      <p className="text-sm text-white/45">Textos del home, contacto y ubicación.</p>
       <div className="mt-8 grid gap-4">
         <AdminField label="Titular línea 1">
           <input name="h1" className="field" defaultValue={settings.homeHeadline1} />

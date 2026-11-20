@@ -120,19 +120,47 @@ export function Inventario() {
         )}
       </div>
 
-      <div className="mt-5 flex gap-2 overflow-x-auto pb-1 lg:hidden">
-        {["", ...carrocerias].map((c) => (
-          <button
-            key={c || "todas"}
-            type="button"
-            onClick={() => setCarroceria(c)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${
-              carroceria === c ? "bg-brand" : "bg-[#141414] text-white/70"
-            }`}
-          >
-            {c || "Todas"}
-          </button>
-        ))}
+      <div className="mt-5 space-y-2 lg:hidden">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {["", ...carrocerias].map((c) => (
+            <button
+              key={c || "todas"}
+              type="button"
+              onClick={() => setCarroceria(c)}
+              className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold ${
+                carroceria === c ? "bg-brand" : "bg-[#141414] text-white/70"
+              }`}
+            >
+              {c || "Todas"}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {["", "Automático", "Manual"].map((c) => (
+            <button
+              key={c || "t-todas"}
+              type="button"
+              onClick={() => setTransmision(c)}
+              className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold ${
+                transmision === c ? "bg-brand" : "bg-[#141414] text-white/70"
+              }`}
+            >
+              {c || "Caja"}
+            </button>
+          ))}
+          {["", "4x2", "4x4"].map((c) => (
+            <button
+              key={`tr-${c || "todas"}`}
+              type="button"
+              onClick={() => setTraccion(c)}
+              className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold ${
+                traccion === c ? "bg-brand" : "bg-[#141414] text-white/70"
+              }`}
+            >
+              {c || "Tracción"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[190px_1fr] lg:gap-8">
@@ -148,20 +176,20 @@ export function Inventario() {
             <CarCard key={car.id} car={car} />
           ))}
         </div>
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#141414] px-4 py-4">
-          <p className="text-sm text-white/60">¿No está lo que buscas?</p>
-          <button
-            type="button"
-            onClick={() => setPedido(true)}
-            className="rounded-full bg-brand px-4 py-2 text-[12px] font-medium"
-          >
-            Pedir un auto
-          </button>
-        </div>
+      </div>
+      <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-[#141414] px-4 py-5 text-center">
+        <p className="text-sm text-white/60">¿No está lo que buscas?</p>
+        <button
+          type="button"
+          onClick={() => setPedido(true)}
+          className="rounded-full bg-brand px-4 py-2 text-[12px] font-medium"
+        >
+          Pedir un auto
+        </button>
       </div>
 
       {compare.ids.length > 0 && (
-        <div className="fixed inset-x-3 bottom-[5.25rem] z-40 mx-auto flex max-w-xl items-center justify-between gap-3 rounded-full border border-white/10 bg-black/90 px-4 py-2.5 backdrop-blur md:bottom-8">
+        <div className="fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-xl items-center justify-between gap-3 rounded-full border border-white/10 bg-black/90 px-4 py-2.5 backdrop-blur md:bottom-8">
           <p className="text-[12px] text-white/70">{compare.ids.length} de 3 en el comparador</p>
           <div className="flex gap-2">
             <button type="button" onClick={compare.clear} className="text-[11px] text-white/40">

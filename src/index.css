@@ -26,6 +26,7 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
   max-width: 100%;
+  touch-action: manipulation;
 }
 
 #root {
@@ -101,6 +102,13 @@ iframe {
 
 .field:focus {
   border-color: #ff0c40;
+}
+
+@media (max-width: 640px) {
+  .field {
+    font-size: 16px;
+    padding: 0.8rem 0.9rem;
+  }
 }
 
 .neon-line {

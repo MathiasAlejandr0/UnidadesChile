@@ -30,8 +30,8 @@ export function LeadModals({
   const origen = kind === "pedido" ? "auto-pedido" : "alerta-precio";
 
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-center bg-black/70 p-4" role="dialog">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111] p-5 sm:p-6">
+    <div className="fixed inset-0 z-[70] grid items-end bg-black/70 p-0 sm:place-items-center sm:p-4" role="dialog">
+      <div className="w-full max-w-md rounded-t-3xl border border-white/10 bg-[#111] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-2xl sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="eyebrow">{kind === "pedido" ? "Te avisamos" : "Ficha"}</p>

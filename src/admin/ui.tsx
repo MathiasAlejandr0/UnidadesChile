@@ -1,5 +1,27 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { isPendingPhoto } from "../lib/photos";
 import { useMediaSrc } from "../store/useMediaSrc";
+
+export function PhotosPending({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`grid place-items-center bg-[#111] px-3 text-center ${className}`}
+      role="img"
+      aria-label="Estamos trabajando en las fotos"
+    >
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand">
+          Unidades Chile
+        </p>
+        <p className="mt-1.5 text-[13px] font-semibold leading-snug text-white">
+          Estamos trabajando
+          <br />
+          en las fotos
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function SafeImg({
   src,
@@ -10,9 +32,26 @@ export function SafeImg({
   alt: string;
   className?: string;
 }) {
-  const url = useMediaSrc(src);
-  if (!url) return <div className={`bg-[#111] ${className ?? ""}`} />;
-  return <img src={url} alt={alt} className={className} />;
+  const resolved = useMediaSrc(src);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src, resolved]);
+
+  if (!resolved || failed || isPendingPhoto(src) || isPendingPhoto(resolved)) {
+    return <PhotosPending className={className} />;
+  }
+
+  return (
+    <img
+      src={resolved}
+      alt={alt}
+      className={className}
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 export function Kpi({
@@ -27,7 +66,7 @@ export function Kpi({
   return (
     <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">{label}</p>
-      <p className="mt-2 text-[28px] font-bold tracking-tight text-white">{value}</p>
+      <p className="mt-2 text-[22px] font-bold tracking-tight text-white sm:text-[28px]">{value}</p>
       {hint && <p className="mt-1 text-[12px] text-white/40">{hint}</p>}
     </div>
   );

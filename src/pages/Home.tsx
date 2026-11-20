@@ -2,27 +2,53 @@ import { Link } from "react-router-dom";
 import { Clock3, MapPin, Navigation } from "lucide-react";
 import { CarCard } from "../components/CarCard";
 import { TrustBar } from "../components/TrustBar";
-import { clp } from "../lib/format";
+import { clp, savingsLabel } from "../lib/format";
 import { useData } from "../store/DataProvider";
 import { PageTitle } from "../components/PageTitle";
+import type { Vehicle } from "../store/types";
+
+function isL200(car: Vehicle) {
+  return /l200/i.test(`${car.marca} ${car.modelo} ${car.version}`);
+}
 
 export function Home() {
   const { published, settings } = useData();
-  const hero =
-    published.find((c) => /l200|katana/i.test(`${c.modelo} ${c.version}`)) ??
-    published.find((c) => c.carroceria === "Pickup") ??
-    published[0] ?? {
-      marca: "Mitsubishi",
-      modelo: "L200",
-      year: 2023,
-      precio: 19_890_000,
-    };
-  const rail = (published.filter((c) => c.destacado).length >= 3
-    ? published.filter((c) => c.destacado)
-    : published
-  ).slice(0, 3);
+  const cheapestL200 = published
+    .filter((car) => isL200(car) && car.precio > 0)
+    .reduce<Vehicle | null>((best, car) => {
+      if (!best || car.precio < best.precio) return car;
+      return best;
+    }, null);
+  // Fallback: cualquier pickup / el más barato publicado (no ocultar el cuadro).
+  const priceHero =
+    cheapestL200 ||
+    published
+      .filter((car) => car.precio > 0)
+      .reduce<Vehicle | null>((best, car) => {
+        const pickup = /pick|l200|camioneta/i.test(
+          `${car.carroceria} ${car.marca} ${car.modelo}`,
+        );
+        const bestPickup = best
+          ? /pick|l200|camioneta/i.test(
+              `${best.carroceria} ${best.marca} ${best.modelo}`,
+            )
+          : false;
+        if (pickup && !bestPickup) return car;
+        if (pickup === bestPickup && best && car.precio < best.precio) return car;
+        if (!best) return car;
+        return best;
+      }, null);
+  const l200Ahorro = priceHero
+    ? savingsLabel(priceHero.precio, priceHero.mercado)
+    : null;
+  // Mostrar rail aunque las fotos sean locales /cars/stock (no solo blob remoto).
+  const withCover = published.filter(
+    (car) => (car.imagenes || []).some((src) => src && !/placeholder-pending|fotos-en-proceso/i.test(src)),
+  );
+  const featuredPhotos = withCover.filter((c) => c.destacado);
+  const rail = (featuredPhotos.length >= 3 ? featuredPhotos : withCover).slice(0, 3);
   const railIds = new Set(rail.map((c) => c.id));
-  const preview = published.filter((car) => !railIds.has(car.id)).slice(0, 3);
+  const preview = withCover.filter((car) => !railIds.has(car.id)).slice(0, 3);
   const mapSrc = `https://maps.google.com/maps?q=${encodeURIComponent(settings.mapQuery)}&z=14&output=embed`;
 
   return (
@@ -40,7 +66,7 @@ export function Home() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black from-0% via-black/70 via-[36%] to-transparent to-[72%] lg:via-black/40 lg:via-[20%] lg:to-transparent lg:to-[48%]" />
 
-          <div className="relative mx-auto flex min-h-[calc(100svh-4.75rem)] max-w-[1400px] flex-col justify-end px-4 pb-8 pt-24 sm:px-6 lg:justify-center lg:px-10 lg:pb-0 lg:pt-16">
+          <div className="relative mx-auto flex min-h-[calc(100svh-4.75rem)] max-w-[1400px] flex-col justify-end px-4 pb-8 pt-[calc(6.5rem+env(safe-area-inset-top))] sm:px-6 lg:justify-center lg:px-10 lg:pb-0 lg:pt-16">
             <div className="max-w-[min(540px,42vw)] max-lg:max-w-[540px]">
               <p className="text-[13px] font-medium text-white/55">
                 {settings.address}
@@ -64,40 +90,56 @@ export function Home() {
                   Explorar catálogo
                 </Link>
                 <Link
-                  to="/vende-tu-auto"
+                  to="/consigna-tu-vehiculo"
                   className="rounded-full border border-white/35 px-6 py-2.5 text-center text-[13px] font-medium tracking-[0.02em] text-white hover:border-white hover:bg-white/5"
                 >
-                  Tasar mi auto
+                  Consigna tu vehículo
                 </Link>
               </div>
-              {hero && (
-                <div className="mt-7 w-full max-w-[220px] rounded-2xl border border-white/10 bg-black/45 px-4 py-3.5 backdrop-blur-md lg:hidden">
+              {priceHero && (
+                <Link
+                  to={`/catalogo/${priceHero.id}`}
+                  className="mt-7 block w-full max-w-[220px] rounded-2xl border border-white/10 bg-black/45 px-4 py-3.5 backdrop-blur-md lg:hidden"
+                >
                   <p className="text-[12px] font-medium text-white/55">
-                    {hero.marca} {hero.modelo} {hero.year}
+                    {isL200(priceHero)
+                      ? "Mitsubishi L200"
+                      : `${priceHero.marca} ${priceHero.modelo}`.trim()}
                   </p>
-                  <p className="mt-1 text-[22px] font-semibold tracking-[-0.03em] text-white">
-                    {clp(hero.precio)}
+                  <p className="mt-1 text-[13px] text-white/45">Desde</p>
+                  <p className="text-[22px] font-semibold tracking-[-0.03em] text-white">
+                    {clp(priceHero.precio)}
                   </p>
-                  <span className="mt-2 inline-flex rounded-full bg-brand/90 px-2.5 py-0.5 text-[10px] font-medium tracking-[0.04em] text-white">
-                    −8% vs mercado
-                  </span>
-                </div>
+                  {l200Ahorro && (
+                    <span className="mt-2 inline-flex rounded-full bg-brand/90 px-2.5 py-0.5 text-[10px] font-medium tracking-[0.04em] text-white">
+                      {l200Ahorro}
+                    </span>
+                  )}
+                </Link>
               )}
             </div>
           </div>
 
-          {hero && (
-            <div className="absolute right-5 z-20 hidden w-[min(220px,calc(100%-2rem))] rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 backdrop-blur-md sm:right-10 sm:bottom-[16%] lg:right-[5%] lg:block">
+          {priceHero && (
+            <Link
+              to={`/catalogo/${priceHero.id}`}
+              className="absolute right-5 z-20 hidden w-[min(220px,calc(100%-2rem))] rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 backdrop-blur-md hover:border-white/25 sm:right-10 sm:bottom-[16%] lg:right-[5%] lg:block"
+            >
               <p className="text-[12px] font-medium text-white/55">
-                {hero.marca} {hero.modelo} {hero.year}
+                {isL200(priceHero)
+                  ? "Mitsubishi L200"
+                  : `${priceHero.marca} ${priceHero.modelo}`.trim()}
               </p>
-              <p className="mt-1 text-[22px] font-semibold tracking-[-0.03em] text-white">
-                {clp(hero.precio)}
+              <p className="mt-1 text-[13px] text-white/45">Desde</p>
+              <p className="text-[22px] font-semibold tracking-[-0.03em] text-white">
+                {clp(priceHero.precio)}
               </p>
-              <span className="mt-2 inline-flex rounded-full bg-brand/90 px-2.5 py-0.5 text-[10px] font-medium tracking-[0.04em] text-white">
-                −8% vs mercado
-              </span>
-            </div>
+              {l200Ahorro && (
+                <span className="mt-2 inline-flex rounded-full bg-brand/90 px-2.5 py-0.5 text-[10px] font-medium tracking-[0.04em] text-white">
+                  {l200Ahorro}
+                </span>
+              )}
+            </Link>
           )}
         </section>
 
@@ -113,7 +155,9 @@ export function Home() {
             </h2>
           </div>
           <div className="mt-8 grid grid-cols-1 items-stretch gap-4 md:grid-cols-3">
-            {rail.map((car) => (car ? <CarCard key={car.id} car={car} layout="featured" /> : null))}
+            {rail.map((car) => (
+              <CarCard key={car.id} car={car} layout="featured" />
+            ))}
           </div>
           <div className="mt-4 grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {preview.map((car) => (

@@ -7,7 +7,7 @@ import { useData } from "../store/DataProvider";
 
 const links = [
   { to: "/catalogo", label: "Catálogo" },
-  { to: "/vende-tu-auto", label: "Vende tu auto" },
+  { to: "/consigna-tu-vehiculo", label: "Consigna tu vehículo" },
   { to: "/financia", label: "Financia" },
   { to: "/nosotros", label: "Nosotros" },
 ];
@@ -29,8 +29,8 @@ export function Header() {
     <header
       className={
         overHero
-          ? "absolute inset-x-0 top-0 z-50 bg-transparent"
-          : "sticky top-0 z-50 border-b border-white/5 bg-black/90 backdrop-blur-xl"
+          ? "absolute inset-x-0 top-0 z-50 bg-transparent pt-[env(safe-area-inset-top)]"
+          : "sticky top-0 z-50 border-b border-white/5 bg-black/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl"
       }
     >
       <div className="mx-auto grid h-[68px] max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 sm:h-[76px] sm:px-6 lg:grid-cols-[1fr_auto_1fr] lg:px-10">
@@ -86,7 +86,7 @@ export function Header() {
       </div>
 
       {open && (
-        <div className="border-t border-white/10 bg-black px-4 py-5 sm:px-6 lg:hidden">
+        <div className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-white/10 bg-black px-4 py-5 sm:px-6 lg:hidden">
           <nav className="flex flex-col gap-4">
             {[...links, ...extraLinks].map((l) => (
               <NavLink

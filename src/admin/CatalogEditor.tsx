@@ -4,6 +4,8 @@ import { ImagePlus, Star, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { useData } from "../store/DataProvider";
 import { nowIso, uid } from "../store/repo";
 import { cuotaDesde } from "../lib/autofin";
+import { adminReorderPhotos, adminSetCover } from "../lib/adminApi";
+import { orderGalleryWithCover } from "../lib/frontCoverMap";
 import type { Vehicle, VehicleStatus } from "../store/types";
 import { AdminField, SafeImg } from "./ui";
 
@@ -70,12 +72,31 @@ export function CatalogEditor() {
     setBusy(false);
   };
 
+  const persistGallery = async (next: string[]) => {
+    set("imagenes", next);
+    if (!form.id || isNew) return;
+    try {
+      await adminReorderPhotos(form.id, next);
+    } catch {
+      /* se guarda al pulsar Guardar */
+    }
+  };
+
   const movePhoto = (index: number, dir: -1 | 1) => {
     const next = [...form.imagenes];
     const j = index + dir;
     if (j < 0 || j >= next.length) return;
     [next[index], next[j]] = [next[j], next[index]];
+    void persistGallery(next);
+  };
+
+  const setCover = (src: string) => {
+    const next = orderGalleryWithCover(src, form.imagenes);
     set("imagenes", next);
+    if (!form.id || isNew) return;
+    void adminSetCover(form.id, src).catch(() => {
+      /* se guarda al pulsar Guardar */
+    });
   };
 
   const canSave = form.marca && form.modelo && form.precio > 0;
@@ -92,13 +113,13 @@ export function CatalogEditor() {
           cuota: form.cuota || cuotaDesde(form.precio),
         };
         await saveVehicle(payload);
-        navigate("/admin/catalogo");
+        navigate("/admin/inventario");
       }}
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link to="/admin/catalogo" className="text-xs text-white/40 hover:text-white">
-            ← Catálogo
+          <Link to="/admin/inventario" className="text-xs text-white/40 hover:text-white">
+            ← Inventario
           </Link>
           <h1 className="mt-2 text-3xl font-bold">{isNew ? "Nueva unidad" : `${form.marca} ${form.modelo}`}</h1>
         </div>
@@ -110,7 +131,7 @@ export function CatalogEditor() {
               onClick={async () => {
                 if (!confirm("¿Eliminar esta unidad?")) return;
                 await deleteVehicle(form.id);
-                navigate("/admin/catalogo");
+                navigate("/admin/inventario");
               }}
             >
               Eliminar
@@ -127,7 +148,14 @@ export function CatalogEditor() {
       </div>
 
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-semibold">Fotos</h2>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-lg font-semibold">Fotos</h2>
+          {!isNew && form.id && (
+            <Link to={`/admin/inventario/medios?slug=${encodeURIComponent(form.id)}`} className="text-xs font-semibold text-brand">
+              Abrir estudio de fotos
+            </Link>
+          )}
+        </div>
         <label
           onDragOver={(e) => {
             e.preventDefault();
@@ -141,7 +169,7 @@ export function CatalogEditor() {
         >
           <ImagePlus className="mb-3 text-brand" />
           <p className="font-semibold">Arrastra fotos aquí o haz clic para elegir</p>
-          <p className="mt-1 text-sm text-white/40">JPG, PNG o WEBP. La primera foto es la portada del catálogo.</p>
+          <p className="mt-1 text-sm text-white/40">JPG, PNG o WEBP. Pulsa «Poner portada» en la foto que quieras al frente.</p>
           <input
             type="file"
             accept="image/*"
@@ -159,22 +187,29 @@ export function CatalogEditor() {
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {form.imagenes.map((src, i) => (
               <div key={src + i} className="group relative overflow-hidden rounded-xl bg-black">
-                <SafeImg src={src} alt="" className="aspect-[4/3] w-full object-cover" />
+                <button type="button" className="block w-full" onClick={() => i !== 0 && setCover(src)}>
+                  <SafeImg src={src} alt="" className="aspect-[4/3] w-full object-cover" />
+                </button>
                 {i === 0 && (
                   <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold">
                     <Star size={10} /> Portada
                   </span>
                 )}
-                <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 bg-black/70 py-1.5 opacity-0 group-hover:opacity-100">
+                <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 bg-black/70 py-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
                   <button type="button" onClick={() => movePhoto(i, -1)} className="rounded p-1 hover:bg-white/10">
                     <ArrowUp size={14} />
                   </button>
                   <button type="button" onClick={() => movePhoto(i, 1)} className="rounded p-1 hover:bg-white/10">
                     <ArrowDown size={14} />
                   </button>
+                  {i !== 0 && (
+                    <button type="button" onClick={() => setCover(src)} className="rounded px-1.5 text-[10px] font-semibold text-brand hover:bg-white/10">
+                      Portada
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => set("imagenes", form.imagenes.filter((_, j) => j !== i))}
+                    onClick={() => void persistGallery(form.imagenes.filter((_, j) => j !== i))}
                     className="rounded p-1 hover:bg-white/10"
                   >
                     <Trash2 size={14} />
@@ -248,10 +283,10 @@ export function CatalogEditor() {
         </AdminField>
         <AdminField label="Estado">
           <select className="field" value={form.status} onChange={(e) => set("status", e.target.value as VehicleStatus)}>
-            <option value="borrador">Borrador</option>
-            <option value="publicado">Publicado</option>
-            <option value="reservado">Reservado</option>
+            <option value="publicado">Disponible</option>
+            <option value="reservado">En reserva</option>
             <option value="vendido">Vendido</option>
+            <option value="borrador">Borrador</option>
           </select>
         </AdminField>
         <AdminField label="Cuota Autofin (vacío = pie 20% · 48m)">

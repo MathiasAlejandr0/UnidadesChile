@@ -2,7 +2,9 @@
  * Catálogo remoto: catalog_vehicles (tenant unidades-chile).
  */
 import { cuotaDesde } from "./autofin";
-import { isUnidadesChileStock } from "./sources";
+import { orderGalleryWithCover } from "./frontCoverMap";
+import { PENDING_PHOTO, coverSrc } from "./photos";
+import { plateKey } from "./sources";
 import { getSupabase, isSupabaseConfigured, UC_TENANT_SLUG } from "./supabase";
 import type { Vehicle, VehicleStatus } from "../store/types";
 
@@ -53,7 +55,8 @@ function rowToVehicle(row: Record<string, unknown>): Vehicle {
     ? (row.gallery as string[]).filter(Boolean)
     : [];
   const image = String(row.image || "");
-  const imagenes = gallery.length ? gallery : image ? [image] : [];
+  const rawImagenes = orderGalleryWithCover(image, gallery.length ? gallery : image ? [image] : []);
+  const imagenes = coverSrc(rawImagenes) === PENDING_PHOTO ? [PENDING_PHOTO] : rawImagenes;
   const precio = Number(row.price) || 0;
   const highlights = Array.isArray(row.highlights)
     ? (row.highlights as string[])
@@ -111,7 +114,7 @@ export async function fetchUcCatalogFromSupabase(): Promise<Vehicle[] | null> {
     if (error || !data) return null;
     return data
       .map((r) => rowToVehicle(r as Record<string, unknown>))
-      .filter((car) => isUnidadesChileStock(car.unidad));
+      .filter((car) => plateKey(car.unidad).length >= 5);
   } catch (err) {
     console.warn("[catalogSupabase] lectura UC falló:", err);
     return null;

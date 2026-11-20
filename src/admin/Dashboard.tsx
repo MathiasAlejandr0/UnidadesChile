@@ -3,62 +3,111 @@ import { useData } from "../store/DataProvider";
 import { catalogStats } from "../lib/stats";
 import { clp } from "../lib/format";
 import { PLACEHOLDER_WHATSAPP } from "../lib/config";
+import { countByOrigins } from "./crmViews";
 import { BarList, Kpi } from "./ui";
 
 export function AdminDashboard() {
-  const { vehicles, leads, publications, settings } = useData();
+  const { vehicles, leads, publications, settings, catalogSource } = useData();
   const stats = catalogStats(vehicles);
   const nuevos = leads.filter((l) => l.estado === "nuevo").length;
-  const posts = publications.filter((p) => p.estado === "publicado").length;
+  const reservas = countByOrigins(leads, ["reserva"]);
+  const creditos = countByOrigins(leads, ["financia", "credito"]);
   const waPendiente = settings.whatsapp === PLACEHOLDER_WHATSAPP;
+  const recientes = [...leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+  const destacados = vehicles.filter((v) => v.status === "publicado").slice(0, 4);
 
   return (
     <div>
-      <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-      <p className="mt-1 text-sm text-white/45">Operación de sucursal · Puerto Montt.</p>
+      <p className="text-sm text-white/45">
+        Resumen gerencial de inventario, prospectos y reservas · catálogo {catalogSource === "supabase" ? "remoto" : "local"}.
+      </p>
 
       {waPendiente && (
         <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
           El WhatsApp todavía es de prueba. Cámbialo en{" "}
-          <Link to="/admin/contenido" className="underline">
-            Sitio web
-          </Link>{" "}
-          antes de atender clientes.
+          <Link to="/admin/config" className="underline">
+            Configuración
+          </Link>
+          .
         </div>
       )}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Unidades publicadas" value={String(stats.publicados)} hint={`${stats.n} en total`} />
-        <Kpi label="Valor de vitrina" value={clp(stats.valorInventario)} hint={`Mediana ${clp(stats.precioMediana)}`} />
-        <Kpi label="Ahorro vs mercado" value={`${stats.ahorroPromedioPct.toFixed(1)}%`} hint={`Total ${clp(stats.ahorroTotal)}`} />
-        <Kpi label="Leads nuevos" value={String(nuevos)} hint={`${leads.length} acumulados · ${posts} notas`} />
+        <Kpi label="Vehículos en catálogo" value={String(stats.n)} hint={`${stats.publicados} publicados`} />
+        <Kpi label="Solicitudes / reservas" value={String(reservas)} hint={`${nuevos} leads nuevos`} />
+        <Kpi label="Valorización de vitrina" value={clp(stats.valorInventario)} hint={`Mediana ${clp(stats.precioMediana)}`} />
+        <Kpi label="Disponibles" value={String(stats.publicados)} hint={`${stats.reservados} reservados · ${stats.vendidos} vendidos`} />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 rounded-2xl border border-white/10 bg-[#121212] p-4">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">Accesos rápidos</p>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Link to="/admin/inventario" className="rounded-xl border border-white/10 bg-white/5 p-3 hover:border-brand/40">
+            <p className="text-xs font-bold">Catálogo & fotos</p>
+            <p className="text-[11px] text-white/45">Publicar o editar autos</p>
+          </Link>
+          <Link to="/admin/crm" className="rounded-xl border border-white/10 bg-white/5 p-3 hover:border-brand/40">
+            <p className="text-xs font-bold">Centro comercial</p>
+            <p className="text-[11px] text-white/45">{leads.length} leads · {creditos} créditos</p>
+          </Link>
+          <Link to="/admin/crm/reservas" className="rounded-xl border border-white/10 bg-white/5 p-3 hover:border-brand/40">
+            <p className="text-xs font-bold">Reservas</p>
+            <p className="text-[11px] text-white/45">{reservas} solicitudes</p>
+          </Link>
+          <Link to="/admin/telemetria" className="rounded-xl border border-white/10 bg-white/5 p-3 hover:border-brand/40">
+            <p className="text-xs font-bold">Telemetría & salud</p>
+            <p className="text-[11px] text-white/45">{publications.filter((p) => p.estado === "publicado").length} notas publicadas</p>
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <section className="rounded-2xl border border-white/10 bg-[#121212] p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold">Stock por marca</h2>
-            <Link to="/admin/reportes" className="text-xs text-brand">
-              Ver reportes
+            <h2 className="font-semibold">Últimas solicitudes</h2>
+            <Link to="/admin/crm" className="text-xs text-brand">
+              Ver CRM →
             </Link>
           </div>
-          <BarList rows={stats.porMarca.map((r) => ({ label: r.marca, n: r.n }))} />
+          {recientes.length === 0 ? (
+            <p className="text-sm text-white/40">Sin leads todavía.</p>
+          ) : (
+            <ul className="space-y-3 text-sm">
+              {recientes.map((l) => (
+                <li key={l.id} className="flex justify-between gap-3 border-b border-white/5 pb-2">
+                  <div>
+                    <p className="font-medium">{l.nombre}</p>
+                    <p className="text-[11px] text-white/40">{l.origen}</p>
+                  </div>
+                  <span className="text-[11px] text-white/50">{l.estado}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
         <section className="rounded-2xl border border-white/10 bg-[#121212] p-5">
-          <h2 className="mb-4 font-semibold">Para operar hoy</h2>
-          <ol className="space-y-2 text-sm text-white/70">
-            <li>1. Confirma WhatsApp y horario en Sitio web.</li>
-            <li>2. Revisa precios y estados en Catálogo (publicado / reservado / vendido).</li>
-            <li>3. Atiende leads nuevos: tasación, crédito y reservas.</li>
-            <li>4. Descarga un backup en Ajustes al cierre del día.</li>
-          </ol>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link to="/admin/catalogo" className="rounded-full bg-brand px-4 py-2 text-xs font-semibold">
-              Ir al catálogo
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-semibold">Inventario destacado</h2>
+            <Link to="/admin/inventario" className="text-xs text-brand">
+              Gestionar →
             </Link>
-            <Link to="/admin/leads" className="rounded-full border border-white/15 px-4 py-2 text-xs">
-              Ver leads
-            </Link>
+          </div>
+          {destacados.length === 0 ? (
+            <p className="text-sm text-white/40">Sin unidades publicadas.</p>
+          ) : (
+            <ul className="space-y-3 text-sm">
+              {destacados.map((v) => (
+                <li key={v.id} className="flex justify-between gap-3">
+                  <span className="truncate font-medium">
+                    {v.marca} {v.modelo}
+                  </span>
+                  <span className="text-white/50">{clp(v.precio)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-5">
+            <BarList rows={stats.porMarca.map((r) => ({ label: r.marca, n: r.n }))} />
           </div>
         </section>
       </div>

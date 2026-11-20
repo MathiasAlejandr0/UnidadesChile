@@ -86,7 +86,36 @@ export function Comparador() {
 
       {selected.length > 0 && (
         <>
-          <div className="mt-8 overflow-x-auto">
+          <div className="mt-8 grid gap-4 md:hidden">
+            {selected.map((car, i) => (
+              <article key={car.id} className="rounded-2xl border border-white/10 bg-[#141414] p-4">
+                <div className="car-photo-well aspect-[4/3] overflow-hidden rounded-xl">
+                  <SafeImg src={car.imagenes[0]} alt={`${car.marca} ${car.modelo}`} className="h-full w-full object-contain p-3" />
+                </div>
+                <p className="mt-3 text-sm font-semibold">
+                  {car.marca} {car.modelo}
+                </p>
+                <p className="text-xs text-white/45">{car.year}</p>
+                <dl className="mt-4 space-y-2 text-sm">
+                  {rows.map((row) => (
+                    <div key={row.label} className="flex justify-between gap-3 border-t border-white/5 pt-2">
+                      <dt className="text-white/45">{row.label}</dt>
+                      <dd className="text-right font-medium">{row.get(i)}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <div className="mt-4 flex items-center justify-between">
+                  <button type="button" onClick={() => toggle(car.id)} className="text-[11px] text-white/40">
+                    Quitar
+                  </button>
+                  <Link to={`/catalogo/${car.id}`} className="rounded-full bg-brand px-4 py-2 text-[12px] font-medium">
+                    Ver ficha
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="mt-8 hidden overflow-x-auto md:block">
             <table className="w-full min-w-[640px] border-separate border-spacing-0">
               <thead>
                 <tr>

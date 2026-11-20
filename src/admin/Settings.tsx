@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
-import {
-  exportBackup,
-  getAdminUser,
-  importBackup,
-  reseedCatalog,
-  saveAdminUser,
-} from "../store/repo";
+import { officialAdmin } from "../lib/adminCredentials";
+import { exportBackup, getAdminRecord, importBackup, reseedCatalog, saveAdminUser } from "../store/repo";
+import { hashPassword, openAdminSession } from "../store/adminAuth";
 import { useData } from "../store/DataProvider";
 import { downloadText } from "../lib/stats";
 import { STOCK_SOURCES } from "../lib/sources";
@@ -13,30 +9,47 @@ import { AdminField } from "./ui";
 
 export function SettingsPage() {
   const { refresh } = useData();
-  const [user, setUser] = useState("admin");
+  const official = officialAdmin();
+  const [user, setUser] = useState(official?.user ?? "admin");
 
   useEffect(() => {
-    void getAdminUser().then((u) => setUser(u.user));
+    void getAdminRecord().then((u) => {
+      if (u?.user) setUser(u.user);
+    });
   }, []);
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-3xl font-bold">Ajustes</h1>
-      <p className="mt-1 text-sm text-white/45">
+      <p className="text-sm text-white/45">
         Acceso, respaldo y stock. Los datos de este panel viven en este navegador.
       </p>
 
+      {official ? (
+        <p className="mt-8 rounded-2xl border border-white/10 p-5 text-sm text-white/55">
+          El acceso de producción es <strong className="text-white">{official.user}</strong>.
+          Para cambiar la clave hay que actualizar las variables en Vercel y volver a desplegar.
+        </p>
+      ) : (
       <form
         className="mt-8 space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
           const data = new FormData(e.currentTarget);
-          const current = await getAdminUser();
+          const current = await getAdminRecord();
           const nextPass = String(data.get("password") ?? "");
-          await saveAdminUser({
-            user: String(data.get("user") ?? current.user),
-            password: nextPass || current.password,
-          });
+          const nextUser = String(data.get("user") ?? current?.user ?? "admin");
+          const passwordHash =
+            nextPass
+              ? await hashPassword(nextPass)
+              : current && "passwordHash" in current
+                ? current.passwordHash
+                : "";
+          if (!passwordHash) {
+            alert("Define una contraseña nueva.");
+            return;
+          }
+          await saveAdminUser({ user: nextUser, passwordHash });
+          await openAdminSession();
           alert("Acceso actualizado.");
         }}
       >
@@ -50,6 +63,7 @@ export function SettingsPage() {
           Guardar acceso
         </button>
       </form>
+      )}
 
       <div className="mt-12 rounded-2xl border border-white/10 p-5">
         <h2 className="font-semibold">Respaldo</h2>
